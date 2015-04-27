@@ -1,0 +1,29 @@
+ubuntu@hmaster:~/tiramola$ ./testvm.py
+|         [test-vm5]: creating (async)
+|         [test-vm5]: creating flavor m1.small, image nchalv_worker_hadoop
+|         [test-vm5]: IaaS status is now pending (took 19 sec)
+Traceback (most recent call last):
+  File "./testvm.py", line 10, in <module>
+    print vm
+  File "/home/ubuntu/tiramola/VM.py", line 140, in __str__
+    text += "\nCloud Status: %s\n" % self.get_cloud_status()
+  File "/home/ubuntu/tiramola/VM.py", line 164, in get_cloud_status
+    return iaas.get_vm_status(self.id)
+  File "/home/ubuntu/tiramola/lib/connector_eucalyptus.py", line 104, in get_vm_status
+    di = describe_instances(instance_ids=[vm_id])
+  File "/home/ubuntu/tiramola/lib/connector_eucalyptus.py", line 45, in describe_instances
+    reservations = euca_connection.get_all_instances(instance_ids)
+  File "/usr/lib/python2.7/dist-packages/boto/ec2/connection.py", line 564, in get_all_instances
+    max_results=max_results)
+  File "/usr/lib/python2.7/dist-packages/boto/ec2/connection.py", line 645, in get_all_reservations
+    [('item', Reservation)], verb='POST')
+  File "/usr/lib/python2.7/dist-packages/boto/connection.py", line 1113, in get_list
+    response = self.make_request(action, params, path, verb)
+  File "/usr/lib/python2.7/dist-packages/boto/connection.py", line 1059, in make_request
+    return self._mexe(http_request)
+  File "/usr/lib/python2.7/dist-packages/boto/connection.py", line 973, in _mexe
+    raise BotoServerError(response.status, response.reason, body)
+boto.exception.BotoServerError: BotoServerError: 500 Internal Server Error
+<?xml version="1.0"?>
+<Response><Errors><Error><Code>AttributeError</Code><Message>Unknown error occurred.</Message></Error></Errors><RequestID>req-af47c2a7-c5c3-4080-8010-b75ce92be7ae</RequestID></Response>
+

@@ -30,18 +30,19 @@ def run_ssh_command(host, user, command, indent=1, prefix="$: ", logger=None):
     :return:
     """
     ssh_giveup_timeout = env_vars['ssh_giveup_timeout']
-    private_key = paramiko.RSAKey.from_private_key_file(home+env_vars["priv_key_path"])
+    key_path = home + env_vars["priv_key_path"]
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    private_key = paramiko.RSAKey.from_private_key_file(key_path)
     if not logger is None:
         logger.debug("Connecting to SSH")
     timer = Timer.get_timer()
     try:
         ssh.connect(host, username=user, timeout=ssh_timeout, pkey=private_key, allow_agent=False, look_for_keys=False)
-        if not logger is None:
+        if logger:
             logger.debug("connected in %d sec. now Running SSH command" % timer.stop())
             timer.start()
-         ### EXECUTE THE COMMAND  ###
+        ### EXECUTE THE COMMAND ###
         stdin, stdout, stderr = ssh.exec_command(command)
         ret = ''
         for line in stdout:
@@ -55,10 +56,8 @@ def run_ssh_command(host, user, command, indent=1, prefix="$: ", logger=None):
         return reindent(ret, indent, prefix=prefix)
     except:
         if not logger is None:
-            logger.error("Could not connect to "+ str(host))
-        traceback.print_exc()
-
-
+            logger.debug("Could not connect to "+ str(host))
+        # traceback.print_exc()
 
 
 def put_file_scp (host, user, files, remote_path='.', recursive=False):
@@ -82,16 +81,12 @@ def put_file_scp (host, user, files, remote_path='.', recursive=False):
 
 
 def test_ssh(host, user, logger=None):
-    ssh_giveup_timeout = env_vars['ssh_giveup_timeout']
-    end_time = datetime.now()+timedelta(seconds=ssh_giveup_timeout)
     try:
         rv = run_ssh_command(host, user, 'echo success', logger=logger)
-        return True
+        return rv
     except:
+        #print "error in connecting ssh:", sys.exc_info()[0]
         return False
-    # except:
-    #     print "error in connecting ssh:", sys.exc_info()[0]
-    return False
 
 
 class Timer():

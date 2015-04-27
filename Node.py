@@ -93,7 +93,7 @@ class Node (VM):
         elif action == "DESTROY": self.destroy()
         self.log.info( "now decommissioned (took %d sec)" % (timer.stop()))
 
-    def kill(self):
+    def kill(self): # TODO
         """
         Runs the required scripts to kill the application being run in the cluster
         """
@@ -116,7 +116,7 @@ class Node (VM):
         self.run_command("echo '%s' >> /etc/hosts; echo %s >/etc/hostname" %
                          (text, self.name), silent=True)
 
-    def get_status(self):
+    def get_status(self): # TODO does not have ctool installed
         """
         Gets the status of the node, combining IaaS status and hooks inside the VM
         TODO: specify status script and run to get status

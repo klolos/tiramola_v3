@@ -20,7 +20,7 @@ if infrastructure == 'openstack':
 
 
 LOGS_DIR = home+"files/VM_logs"
-ATTEMPT_INTERVAL = 2
+ATTEMPT_INTERVAL = 5
 
 
 class VM (object):
@@ -76,7 +76,6 @@ class VM (object):
         self.id = in_dict['id']
 
     def create(self, wait=False):
-
         if wait:
             self.log.info("creating (synchronously)")
             self.create_sync()
@@ -110,7 +109,7 @@ class VM (object):
         """
         Issues the 'shutdown' command to the IaaS provider
         """
-        self.log.info('Shutting down (id: %d)' % self.id)
+        self.log.info('Shutting down (id: %s)' % self.id)
         return iaas.shutdown_vm(self.id)
 
     def startup(self):
@@ -119,7 +118,7 @@ class VM (object):
         :return: true if VM exist false if not
         """
         if not self.created: return False;
-        self.log.info('starting up (id: %d)' %  self.id)
+        self.log.info('starting up (id: %s)' %  self.id)
         return iaas.startup_vm(self.id)
 
     def destroy(self):
@@ -176,7 +175,7 @@ class VM (object):
                          ' so you cannot run commands on it')
             return "ERROR"
         self.log.debug("running SSH command:\n\n%s\n\n" % reindent(command, 5))
-        rv = run_ssh_command(self.get_public_addr(), user, command, indent, prefix, logger=self.log)
+        rv = run_ssh_command(self.get_private_addr(), user, command, indent, prefix, logger=self.log)
         if rv is not None:
             self.log.debug("command returned:\n\n %s\n\n" % rv)
         return rv
@@ -185,7 +184,7 @@ class VM (object):
         """
         Puts a file or a list of files to this VM
         """
-        put_file_scp(self.get_public_addr(), user, files, remote_path, recursive)
+        put_file_scp(self.get_private_addr(), user, files, remote_path, recursive)
 
     def run_files(self, files):
         """
@@ -223,29 +222,29 @@ class VM (object):
         attempts = 0
         if not self.created:
             self.log.debug("Not active yet. Sleeping")
-            while not self.created:  sleep(3)
-        self.log.debug("Waiting for SSH daemon (%s)" % self.get_public_addr())
-        #time to stop trying
-        end_time = datetime.now()+timedelta(seconds=env_vars['ssh_giveup_timeout'])
-        self.log.debug("end time:"+str(end_time))
+            while not self.created: sleep(3)
+        addr = self.get_private_addr()
+        self.log.debug("Waiting for SSH daemon (%s)" % addr)
+        end_time = datetime.now() + timedelta(seconds=env_vars['ssh_giveup_timeout'])
         timer = Timer()
         timer.start()
-        #self.log.info(("VM: Trying ssh, attempt "),
         while not success:
-            #if(attempts%5 == 0): self.log.info( ("%d" % attempts),
             attempts += 1
-            self.log.debug("ssh attempt:"+str(attempts))
-            if test_ssh(self.get_public_addr(), 'root', logger=self.log):
+            self.log.debug("ssh attempt: " + str(attempts))
+            res = test_ssh(addr, 'root', logger=self.log)
+            if res:
+                self.log.debug("ssh succeeded: " + str(res))
                 success = True
             else:
+                self.log.debug("ssh failed")
                 if datetime.now() > end_time:
                     break
                 sleep(ATTEMPT_INTERVAL)
         delta = timer.stop()
         if success:
-            self.log.debug("now ready (took %d sec)" % delta)
+            self.log.info("VM is now ready (took %d sec)" % delta)
         else:
-            self.log.error(" FAILED to be SSH-able (after %d sec)" % delta)
+            self.log.error("FAILED to be SSH-able (after %d sec)" % delta)
         return success
 
     def get_public_addr(self):
@@ -263,8 +262,9 @@ class VM (object):
         return rv
 
     def get_private_addr(self):
-        if len(self.addresses) == 0:
+        while not self.addresses: # wait till we get a private address!
             self.load_addresses()
+            sleep(2)
         #find fixed ip
         for i in self.addresses:
             if i.version == 4 and i.type == "fixed":

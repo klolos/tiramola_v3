@@ -9,6 +9,7 @@
     "clients_client_load": "scripts/ycsb_load.sh",
     "clients_client_run": "scripts/ycsb_run.sh",
     "clients_client_run_sin": "scripts/ycsb_run_sin.sh",
-    "clients_client_bootstrap": "scripts/client_bootstrap.sh"
-
+    "clients_client_bootstrap": "scripts/client_bootstrap.sh",
+    "hcluster_worker_bootstrap": "scripts/hworker_bootstrap.sh",
+    "hcluster_worker_decommission": "scripts/hworker_decommission.sh"
 }
