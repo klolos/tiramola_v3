@@ -1,6 +1,7 @@
 import boto.ec2
-from euca2ools.commands.eucacommand import EucaCommand
+#from euca2ools.commands.eucacommand import EucaCommand
 import sys, os, time
+from novaclient import client
 import commands
 from boto.ec2.connection import EC2Connection
 import lib.persistance_module
@@ -14,13 +15,12 @@ ec2_secret_key = env_vars['cmantas_EC2_SECRET_KEY']
 ec2_url = env_vars['EC2_URL']
 ec2_key_name = env_vars["openstack_key_pair_name"]
 
-
 # init the connection object requred to run euca2ools commands
-euca_command = EucaCommand()
-euca_command.environ['EC2_ACCESS_KEY'] = ec2_access_key
-euca_command.environ['EC2_SECRET_KEY'] = ec2_secret_key
-euca_command.environ['EC2_URL'] = ec2_url
-euca_connection = euca_command.make_connection()
+#euca_command = EucaCommand()
+#euca_command.environ['EC2_ACCESS_KEY'] = ec2_access_key
+#euca_command.environ['EC2_SECRET_KEY'] = ec2_secret_key
+#euca_command.environ['EC2_URL'] = ec2_url
+#euca_connection = euca_command.make_connection()
 
 # all the attributes of an instance that we may find useful
 usefull_attributes = ["id", "image_id", "public_dns_name", "private_dns_name",
@@ -29,34 +29,50 @@ usefull_attributes = ["id", "image_id", "public_dns_name", "private_dns_name",
                             "ramdisk", "additional_info"]
 
 ## Mapping from EC2 states to Openstack states (includes only the states we check for in the VM class)
-statemap = {"running": "ACTIVE",    "shutoff": "STOPPED"}
+statemap = {"running": "ACTIVE", "shutoff": "STOPPED"}
 
 
 #the gateway for the openstack installation
 gateway = '147.102.4.178'
 
 
-def describe_instances(instance_ids=None, state=None):
+def describe_instances(instance_ids=None, state=None): # private
     """
     helper function that acts as a wrapper for the "get_all_instances command"
     :param state: if defined, only returns the instances that are in the requred state
     :return: a map of instance_id -> details
     """
-    instances = dict()
-    reservations = euca_connection.get_all_instances(instance_ids)
-    for reservation in reservations:
-        for instance in reservation.instances:
-            details = dict()
-            for attr in usefull_attributes:
-                #get the member value from the instance instance
-                val = getattr(instance, attr, "")
-                # add this attribute to the instance details
-                details[attr] = val
-            #add this intance's details to the instances list (check and filter if 'state' is not None
-            if state and state != instance.state:
-                continue
-            else:
-                instances[instance.id] = details
+    username = os.environ('OS_USERNAME')
+    password = os.environ('OS_PASSWORD')
+    nova = client.Client(1.1, username, password, username, 'http://termi7:5000/v2.0')
+    servers = nova.servers.list()
+
+    instances = {}
+    for server in servers:
+        # filter out instances if specific instance ids are provided
+        if instance_ids and not server.id in instance_ids:
+            continue
+
+        details = {}
+        details['id'] = server.id
+        details['image_id'] = getattr(server, 'image', {}).get('id', "")
+        details['public_dns_name'] = getattr(server, 'networks', {}).get('public-net', [""])[0]
+        details['private_dns_name'] = getattr(server, 'networks', {}).get('private-net', [""])[0]
+        details['state'] = getattr(server, 'OS-EXT-STS:vm_state', "")
+        details['key_name'] = getattr(server, 'key_name', "")
+        details['instance_type'] = getattr(server, 'flavor', {}).get('id', "")
+        details['ami_launch_index'] = ""
+        details['product_codes'] = ""
+        details['launch_time'] = ""
+        details['placement'] = ""
+        details['kernel'] = ""
+        details['ramdisk'] = ""
+        details['additional_info'] = ""
+
+        # filter out instances if a state is provided
+        if not state or state == server['state']:
+            instances[server.id] = details
+
     return instances
 
 
